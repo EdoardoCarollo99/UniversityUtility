@@ -1,0 +1,14 @@
+{
+  "TelegramBot": {
+    "BotToken": "INCOLLA_QUI_IL_TOKEN_DEL_BOT",
+    "ChatId": "INCOLLA_QUI_IL_CHAT_ID",
+    "Description": "BotToken: Ottieni da @BotFather quando crei il bot | ChatId: Il TUO ID personale da @userinfobot (NON l'ID del bot!)"
+  },
+  "University": {
+    "Username": "Username",
+    "Password": "Password",
+    "DefaultSubject": "Sicurezza delle reti e Cyber Security",
+    "SaveCredentials": true,
+    "Description": "Opzionale: puoi salvare le credenziali qui per non doverle inserire ogni volta"
+  }
+}
