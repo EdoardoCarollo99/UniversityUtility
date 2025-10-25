@@ -1,0 +1,25 @@
+@echo off
+REM ================================================
+REM  TEMPLATE CONFIGURAZIONE TELEGRAM BOT
+REM ================================================
+REM
+REM ISTRUZIONI:
+REM 1. Copia questo file e rinominalo in "set-env.bat"
+REM 2. Sostituisci i valori con quelli reali
+REM 3. Esegui "set-env.bat" prima di avviare il bot
+REM 4. NON committare set-env.bat su Git!
+REM
+REM ================================================
+
+REM Ottieni il token da @BotFather su Telegram
+set TELEGRAM_BOT_TOKEN=1234567890:ABCdefGHIjklMNOpqrsTUVwxyz
+
+REM Ottieni il tuo Chat ID da @userinfobot su Telegram
+set TELEGRAM_CHAT_ID=123456789
+
+echo [OK] Variabili d'ambiente impostate!
+echo.
+echo Token: %TELEGRAM_BOT_TOKEN%
+echo Chat ID: %TELEGRAM_CHAT_ID%
+echo.
+echo Ora puoi eseguire: start-telegram-bot.bat
