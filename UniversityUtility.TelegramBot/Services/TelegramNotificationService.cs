@@ -53,7 +53,7 @@ namespace UniversityUtility.TelegramBot.Services
         public async Task SendProgressUpdateAsync(string lessonName, decimal percentage)
         {
             var progressBar = GenerateProgressBar(percentage);
-            var message = $"?? *{lessonName}*\n{progressBar} {percentage:F1}%";
+            var message = $"*{lessonName}*\n{progressBar} {percentage:F1}%";
             await SendMessageAsync(message);
         }
 
