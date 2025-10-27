@@ -191,26 +191,77 @@ namespace UniversityUtility.Core.Services
             if (_page == null)
                 throw new InvalidOperationException("Browser page not initialized");
 
+            // Prima prova a cercare nella sezione "Da Completare"
             await ClickDaCompletareButtonAsync();
 
-            _logger.LogInfo($"Cercando il corso: {subject}");
+            _logger.LogInfo($"Cercando il corso '{subject}' in 'Da Completare'...");
 
             try
             {
                 var courseButton = _page.Locator(
                     $"//span[contains(normalize-space(.), \"{subject}\")]/ancestor::div[.//a[contains(@href, \"/videolezioni/\")]][1]//a[contains(@href, \"/videolezioni/\")]"
-                      ).First;
+                ).First;
 
-                await courseButton.ClickAsync();
-                await _page.WaitForLoadStateAsync(LoadState.NetworkIdle);
-                await Task.Delay(DefaultTimeout);
+                // Controlla se il corso esiste nella sezione "Da Completare"
+                var courseCount = await _page.Locator(
+                    $"//span[contains(normalize-space(.), \"{subject}\")]/ancestor::div[.//a[contains(@href, \"/videolezioni/\")]][1]//a[contains(@href, \"/videolezioni/\")]"
+                ).CountAsync();
 
-                _logger.LogSuccess($"Navigato al corso: {subject}");
+                if (courseCount > 0)
+                {
+                    // Corso trovato in "Da Completare"
+                    _logger.LogSuccess($"Corso '{subject}' trovato in 'Da Completare'");
+                    await courseButton.ClickAsync();
+                    await _page.WaitForLoadStateAsync(LoadState.NetworkIdle);
+                    await Task.Delay(DefaultTimeout);
+                    _logger.LogSuccess($"Navigato al corso: {subject}");
+                    return;
+                }
+                else
+                {
+                    // Corso NON trovato in "Da Completare", prova in "Da Iniziare"
+                    _logger.LogWarning($"Corso '{subject}' non trovato in 'Da Completare'");
+                    await ClickDaIniziareButtonAsync();
+
+                    _logger.LogInfo($"Cercando il corso '{subject}' in 'Da Iniziare'...");
+
+                    var courseButtonDaIniziare = _page.Locator(
+                        $"//span[contains(normalize-space(.), \"{subject}\")]/ancestor::div[.//a[contains(@href, \"/videolezioni/\")]][1]//a[contains(@href, \"/videolezioni/\")]"
+                    ).First;
+
+                    await courseButtonDaIniziare.ClickAsync();
+                    await _page.WaitForLoadStateAsync(LoadState.NetworkIdle);
+                    await Task.Delay(DefaultTimeout);
+
+                    _logger.LogSuccess($"Corso '{subject}' trovato in 'Da Iniziare' e aperto con successo");
+                }
             }
             catch (Exception ex)
             {
                 _logger.LogError($"Impossibile trovare o aprire il corso '{subject}': {ex.Message}");
                 throw;
+            }
+        }
+
+        // Aggiungi questo nuovo metodo per cliccare sul bottone "Da Iniziare"
+        private async Task ClickDaIniziareButtonAsync()
+        {
+            if (_page == null)
+                throw new InvalidOperationException("Browser page not initialized");
+
+            try
+            {
+                var daIniziareButton = _page.Locator("//*[text()='Da iniziare ']").First;
+                await daIniziareButton.ClickAsync();
+                await _page.WaitForLoadStateAsync(LoadState.DOMContentLoaded);
+                await Task.Delay(3000);
+                _logger.LogInfo("Filtro 'Da Iniziare' applicato.");
+                await NotifyAsync("Ricerca corso in 'Da Iniziare'...");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Bottone 'Da Iniziare' non trovato: {ex.Message}");
+                throw new InvalidOperationException($"Impossibile trovare il filtro 'Da Iniziare': {ex.Message}");
             }
         }
 
