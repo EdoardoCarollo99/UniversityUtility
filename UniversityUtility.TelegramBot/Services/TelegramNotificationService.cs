@@ -50,6 +50,25 @@ namespace UniversityUtility.TelegramBot.Services
             }
         }
 
+        public async Task SendScreenshotAsync(byte[] screenshot, string caption)
+        {
+            try
+            {
+                using var stream = new MemoryStream(screenshot);
+                var timestamp = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+                await _botClient.SendPhoto(
+                    _chatId,
+                    InputFile.FromStream(stream, $"error_{timestamp.Replace(":", "-").Replace(" ", "_")}.png"),
+                    caption: $"⚠️ {caption}\n🕒 {timestamp}"
+               );
+                _logger.LogSuccess("Screenshot errore inviato su Telegram");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Errore invio screenshot Telegram: {ex.Message}");
+            }
+        }
+
         public async Task SendProgressUpdateAsync(string lessonName, decimal percentage)
         {
             var progressBar = GenerateProgressBar(percentage);

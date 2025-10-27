@@ -166,7 +166,7 @@ namespace UniversityUtility.TelegramBot.Services
             catch (Exception ex)
             {
                 _logger.LogError($"Errore processamento comando: {ex.Message}");
-                
+
                 await botClient.SendMessage(
                     chatId,
                     $"Errore: {ex.Message}",
@@ -374,23 +374,10 @@ namespace UniversityUtility.TelegramBot.Services
 
             _automationService = new UniversityAutomationService(logger, inputService, notificationService);
 
-            _automationTask = Task.Run(async () =>
-              {
-                  try
-                  {
-                      await _automationService.RunAsync(_credentials);
-                  }
-                  catch (Exception ex)
-                  {
-                      _logger.LogError($"Errore automazione: {ex.Message}");
-                      await notificationService.SendMessageAsync($"Automazione fallita: {ex.Message}");
-                  }
-              }, cancellationToken);
-
-            var startMessage = "Automazione avviata";
+            var startMessage = "🚀 Automazione avviata";
             if (_credentials != null)
             {
-                startMessage += $"\n\nUtente: {_credentials.Username}\nMateria: {_credentials.Subject}";
+                startMessage += $"\n\n👤 Utente: {_credentials.Username}\n📚 Materia: {_credentials.Subject}";
             }
 
             await _botClient.SendMessage(
@@ -398,6 +385,37 @@ namespace UniversityUtility.TelegramBot.Services
                 startMessage,
                 cancellationToken: cancellationToken
             );
+
+            // Avvia l'automazione in un task separato
+            _automationTask = Task.Run(async () =>
+          {
+              try
+              {
+                  await _automationService.RunAsync(_credentials);
+              }
+              catch (OperationCanceledException)
+              {
+                  _logger.LogInfo("Automazione interrotta dall'utente");
+                  await notificationService.SendMessageAsync("⏹️ Automazione interrotta dall'utente");
+              }
+              catch (TimeoutException tex)
+              {
+                  _logger.LogError($"Timeout automazione: {tex.Message}");
+                  // Screenshot già inviato dal WaitFinishLesson
+                  await notificationService.SendMessageAsync($"⏱️ Timeout: {tex.Message}");
+              }
+              catch (Exception ex)
+              {
+                  _logger.LogError($"Errore automazione: {ex.Message}");
+                  // Screenshot già inviato dal RunAsync
+                  await notificationService.SendMessageAsync($"❌ Errore: {ex.Message}");
+              }
+              finally
+              {
+                  // Cleanup è già gestito dal RunAsync finally block
+                  _logger.LogInfo("Task automazione terminato");
+              }
+          }, cancellationToken);
         }
 
         private async Task SendStatusAsync(long chatId, CancellationToken cancellationToken)
@@ -405,10 +423,10 @@ namespace UniversityUtility.TelegramBot.Services
             if (_automationService == null)
             {
                 await _botClient.SendMessage(
-                    chatId,
-                    "Nessuna automazione attiva",
-                    cancellationToken: cancellationToken
-                );
+              chatId,
+                       "Nessuna automazione attiva",
+              cancellationToken: cancellationToken
+                  );
                 return;
             }
 
@@ -416,10 +434,10 @@ namespace UniversityUtility.TelegramBot.Services
             var taskStatus = _automationTask?.Status.ToString() ?? "Non avviato";
 
             await _botClient.SendMessage(
-                chatId,
-                $"{status}\n\nTask: {taskStatus}",
-                cancellationToken: cancellationToken
-            );
+           chatId,
+               $"{status}\n\nTask: {taskStatus}",
+             cancellationToken: cancellationToken
+                    );
         }
 
         private async Task SendScreenshotAsync(long chatId, CancellationToken cancellationToken)
@@ -427,9 +445,9 @@ namespace UniversityUtility.TelegramBot.Services
             if (_automationService == null)
             {
                 await _botClient.SendMessage(
-                    chatId,
-                    "Nessuna automazione attiva",
-                    cancellationToken: cancellationToken
+              chatId,
+          "Nessuna automazione attiva",
+                cancellationToken: cancellationToken
                 );
                 return;
             }
@@ -438,20 +456,20 @@ namespace UniversityUtility.TelegramBot.Services
             if (screenshot == null)
             {
                 await _botClient.SendMessage(
-                    chatId,
+                chatId,
                     "Impossibile ottenere lo screenshot",
-                    cancellationToken: cancellationToken
-                    );
+                      cancellationToken: cancellationToken
+                            );
                 return;
             }
 
             using var stream = new MemoryStream(screenshot);
-                await _botClient.SendPhoto(
-                    chatId,
-                    InputFile.FromStream(stream, "screenshot.png"),
-                    caption: $"Screenshot - {DateTime.Now:HH:mm:ss}",
-                    cancellationToken: cancellationToken
-                );
+            await _botClient.SendPhoto(
+           chatId,
+              InputFile.FromStream(stream, "screenshot.png"),
+               caption: $"Screenshot - {DateTime.Now:HH:mm:ss}",
+               cancellationToken: cancellationToken
+                     );
         }
 
         private async Task StopAutomationAsync(long chatId, CancellationToken cancellationToken)
@@ -459,30 +477,51 @@ namespace UniversityUtility.TelegramBot.Services
             if (_automationService == null || _automationTask == null)
             {
                 await _botClient.SendMessage(
-                chatId,
-                "Nessuna automazione da fermare",
-                cancellationToken: cancellationToken
-                );
+                         chatId,
+                     "Nessuna automazione da fermare",
+                     cancellationToken: cancellationToken
+                       );
                 return;
             }
 
             await _botClient.SendMessage(
-                chatId,
-                "Fermando automazione...",
-                cancellationToken: cancellationToken
-            );
+         chatId,
+           "⏹️ Fermando automazione...",
+           cancellationToken: cancellationToken
+        );
 
-            await _automationService.DisposeAsync();
-            
-            _automationService = null;
-            
-            _automationTask = null;
+            try
+            {
+                // Richiedi l'interruzione dell'automazione
+                _automationService.RequestStop();
 
-            await _botClient.SendMessage(
-                chatId,
-                "Automazione fermata",
+                // Attendi che il task finisca (max 30 secondi)
+                var timeoutTask = Task.Delay(30000, cancellationToken);
+                var completedTask = await Task.WhenAny(_automationTask, timeoutTask);
+
+                if (completedTask == timeoutTask)
+                {
+                    _logger.LogWarning("Timeout durante l'interruzione, forzo la chiusura");
+                }
+
+                // Disponi l'automazione
+                await _automationService.DisposeAsync();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Errore durante lo stop: {ex.Message}");
+            }
+            finally
+            {
+                _automationService = null;
+                _automationTask = null;
+
+                await _botClient.SendMessage(
+          chatId,
+          "✅ Automazione fermata. Usa /run per riavviarla",
                 cancellationToken: cancellationToken
-            );
+             );
+            }
         }
 
         private Task HandleErrorAsync(ITelegramBotClient botClient, Exception exception, CancellationToken cancellationToken)
